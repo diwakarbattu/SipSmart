@@ -1,0 +1,31 @@
+import api from './api';
+
+export const authService = {
+    login: async (identity: string, password: string) => {
+        const response = await api.post('/auth/login', { identity, password });
+        if (response.data.token) {
+            localStorage.setItem('auth_token', response.data.token);
+            localStorage.setItem('user_data', JSON.stringify(response.data.user));
+        }
+        return response.data;
+    },
+
+    register: async (userData: any) => {
+        const response = await api.post('/auth/register', userData);
+        if (response.data.token) {
+            localStorage.setItem('auth_token', response.data.token);
+            localStorage.setItem('user_data', JSON.stringify(response.data.user));
+        }
+        return response.data;
+    },
+
+    logout: () => {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_data');
+    },
+
+    getCurrentUser: () => {
+        const data = localStorage.getItem('user_data');
+        return data ? JSON.parse(data) : null;
+    }
+};

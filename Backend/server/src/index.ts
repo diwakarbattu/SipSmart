@@ -1,0 +1,67 @@
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+// Routes
+import authRoutes from './routes/auth';
+import productRoutes from './routes/products';
+import orderRoutes from './routes/orders';
+import notificationRoutes from './routes/notifications';
+import userRoutes from './routes/users';
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST'],
+    },
+});
+
+app.use(cors());
+app.use(express.json());
+
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mt-beer-order';
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('✅ Connected to MongoDB'))
+    .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+
+// Socket.io
+io.on('connection', (socket) => {
+    console.log('🔌 New client connected:', socket.id);
+
+    socket.on('join', (room) => {
+        socket.join(room);
+        console.log(`👤 User joined room: ${room}`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('👋 Client disconnected');
+    });
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
+// Basic Route
+app.get('/', (req, res) => {
+    res.send('MT Beer Order API is running...');
+});
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
