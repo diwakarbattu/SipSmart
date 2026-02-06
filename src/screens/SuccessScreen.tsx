@@ -6,26 +6,85 @@ import { motion } from "motion/react";
 export function SuccessScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { orderId, deliveryTime } = location.state || {};
+  const { orderId, pickupDate, pickupTime } = location.state || {};
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
       <div className="w-full max-w-sm space-y-8 text-center">
-        {/* Success Icon */}
-        <motion.div
-          initial={{ scale: 0, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 260,
-            damping: 20,
-            delay: 0.1
-          }}
-          className="relative mx-auto w-32 h-32 bg-success/20 rounded-full flex items-center justify-center"
-        >
-          <div className="absolute inset-0 bg-success/10 rounded-full animate-ping"></div>
-          <CheckCircle2 className="w-20 h-20 text-success" strokeWidth={1.5} />
-        </motion.div>
+        {/* Success Animation - Beer Clink */}
+        <div className="relative mx-auto w-40 h-40 flex items-center justify-center">
+          {/* Left Beer */}
+          <motion.div
+            initial={{ x: -50, rotate: -45, opacity: 0 }}
+            animate={{ x: -10, rotate: 0, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 12,
+              delay: 0.2
+            }}
+            className="text-amber-500 relative z-10"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-amber-500 fill-amber-500/20"
+            >
+              <path d="M17 11h1a3 3 0 0 1 0 6h-1" />
+              <path d="M9 12v6" />
+              <path d="M13 12v6" />
+              <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5v17c1.76 0 3 .5 3 .5s1.24-.5 3-.5V7.5Z" />
+              <path d="M5 11v8a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-8" />
+            </svg>
+          </motion.div>
+
+          {/* Right Beer */}
+          <motion.div
+            initial={{ x: 50, rotate: 45, opacity: 0 }}
+            animate={{ x: 10, rotate: 0, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 200,
+              damping: 12,
+              delay: 0.2
+            }}
+            className="text-amber-500 relative z-10 -ml-4"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-amber-500 fill-amber-500/20 -scale-x-100"
+            >
+              <path d="M17 11h1a3 3 0 0 1 0 6h-1" />
+              <path d="M9 12v6" />
+              <path d="M13 12v6" />
+              <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5v17c1.76 0 3 .5 3 .5s1.24-.5 3-.5V7.5Z" />
+              <path d="M5 11v8a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-8" />
+            </svg>
+          </motion.div>
+
+          {/* Clink Effect (Star/Burst) */}
+          <motion.div
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.5, 0], opacity: [0, 1, 0] }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-yellow-400 rounded-full blur-lg opacity-50"
+          />
+        </div>
 
         {/* Text Content */}
         <motion.div
@@ -36,7 +95,7 @@ export function SuccessScreen() {
         >
           <h1 className="text-3xl font-black tracking-tight">Order Placed!</h1>
           <p className="text-muted-foreground">
-            Sit back and relax, your chilled beer is on the way.
+            Sit back and relax, your pickup is scheduled.
           </p>
         </motion.div>
 
@@ -54,8 +113,8 @@ export function SuccessScreen() {
           <div className="h-px bg-border"></div>
           <div className="flex justify-between items-center">
             <div className="text-left">
-              <span className="text-muted-foreground text-xs block mb-1">Estimated Arrival</span>
-              <span className="text-lg font-bold">{deliveryTime || "30-45 mins"}</span>
+              <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-1">Scheduled Pickup</span>
+              <span className="text-sm font-bold">{pickupDate} at {pickupTime}</span>
             </div>
             <div className="flex gap-2">
               <button className="p-3 bg-secondary rounded-2xl hover:bg-accent/10 transition-colors">

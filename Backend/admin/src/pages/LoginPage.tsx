@@ -2,19 +2,30 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Beer, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { authService } from '../services/authService';
+import { toast } from 'sonner';
 
 export function LoginPage() {
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const [formData, setFormData] = useState({ identity: '', password: '' });
+
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setTimeout(() => {
-            setIsLoading(false);
+        try {
+            await authService.login(formData.identity, formData.password);
+            toast.success('Access Granted', { description: 'Welcome back, Administrator' });
             navigate('/');
-        }, 1200);
+        } catch (err: any) {
+            toast.error('Authentication Failed', {
+                description: err.response?.data?.message || err.message || 'Invalid credentials'
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -47,6 +58,8 @@ export function LoginPage() {
                                 required
                                 type="text"
                                 placeholder="admin@mtbeer.com"
+                                value={formData.identity}
+                                onChange={e => setFormData({ ...formData, identity: e.target.value })}
                                 className="w-full pl-14 pr-4 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-[1.5rem] focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-900 dark:text-white"
                             />
                         </div>
@@ -60,6 +73,8 @@ export function LoginPage() {
                                 required
                                 type={showPassword ? "text" : "password"}
                                 placeholder="••••••••"
+                                value={formData.password}
+                                onChange={e => setFormData({ ...formData, password: e.target.value })}
                                 className="w-full pl-14 pr-14 py-5 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-[1.5rem] focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all text-slate-900 dark:text-white"
                             />
                             <button

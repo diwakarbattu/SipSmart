@@ -7,6 +7,8 @@ export interface UserProfile {
     email: string;
     address: string;
     role: string;
+    rewardPoints: number;
+    profilePic?: string;
 }
 
 export const userService = {

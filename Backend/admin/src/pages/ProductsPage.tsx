@@ -13,13 +13,17 @@ export function ProductsPage() {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [productToDelete, setProductToDelete] = useState<string | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>('');
 
     const [formData, setFormData] = useState({
         name: '',
         price: 0,
+        type: 'Whiskey bottle',
+        size: '750ml',
+        discount: 0,
         stock: 0,
         description: '',
-        image: 'https://images.unsplash.com/photo-1627060063038-85a707de7613?w=400'
     });
 
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
@@ -29,23 +33,53 @@ export function ProductsPage() {
         setFormData({
             name: p.name,
             price: p.price,
+            type: p.type || 'Whiskey bottle',
+            size: p.size || '750ml',
+            discount: p.discount || 0,
             stock: p.stock,
             description: p.description,
-            image: p.image
         });
+        setImagePreview(p.image);
+        setImageFile(null);
         setIsModalOpen(true);
+    };
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const data = new FormData();
+            data.append('name', formData.name);
+            data.append('price', String(formData.price));
+            data.append('type', formData.type);
+            data.append('size', formData.size);
+            data.append('discount', String(formData.discount));
+            data.append('stock', String(formData.stock));
+            data.append('description', formData.description);
+            if (imageFile) {
+                data.append('image', imageFile);
+            }
+
             if (selectedProduct) {
-                await updateProduct(selectedProduct.id, formData);
+                await updateProduct(selectedProduct.id, data);
             } else {
-                await addProduct(formData);
+                await addProduct(data);
             }
             setIsModalOpen(false);
             setSelectedProduct(null);
+            setImageFile(null);
+            setImagePreview('');
         } catch (err) {
             // Error Toast handled in context
         }
@@ -88,8 +122,11 @@ export function ProductsPage() {
                                 alt={product.name}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
-                            <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm">
+                            <div className="absolute top-4 right-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1 rounded-full shadow-sm flex flex-col items-end">
                                 <p className="text-amber-600 font-black text-sm">₹{product.price}</p>
+                                {(product.discount ?? 0) > 0 && (
+                                    <p className="text-[10px] text-emerald-500 font-bold">-{product.discount}% OFF</p>
+                                )}
                             </div>
                             {product.stock < 10 && (
                                 <div className="absolute top-4 left-4 bg-rose-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter flex items-center gap-1">
@@ -100,7 +137,10 @@ export function ProductsPage() {
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{product.name}</h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white line-clamp-1">{product.name}</h3>
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{product.type}</span>
+                                </div>
                                 <p className={`text-xs font-black mt-1 uppercase tracking-wider ${product.stock < 10 ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'}`}>
                                     {product.stock} items left
                                 </p>
@@ -137,12 +177,26 @@ export function ProductsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3 col-span-2 md:col-span-1">
                             <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Photo Preview</label>
-                            <div className="relative group aspect-square rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all hover:border-amber-500">
-                                <img src={formData.image} className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
+                            <div
+                                onClick={() => document.getElementById('imageInput')?.click()}
+                                className="relative group aspect-square rounded-3xl overflow-hidden border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 flex items-center justify-center cursor-pointer transition-all hover:border-amber-500"
+                            >
+                                {imagePreview ? (
+                                    <img src={imagePreview} className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
+                                ) : (
+                                    <ImageIcon className="w-10 h-10 text-slate-300" />
+                                )}
                                 <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-amber-500">
-                                    <ImageIcon className="w-10 h-10" />
-                                    <span className="text-xs font-black mt-2">Change Image</span>
+                                    <Plus className="w-10 h-10" />
+                                    <span className="text-xs font-black mt-2">{imagePreview ? 'Change Image' : 'Upload Image'}</span>
                                 </div>
+                                <input
+                                    id="imageInput"
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleImageChange}
+                                />
                             </div>
                         </div>
 
@@ -152,11 +206,45 @@ export function ProductsPage() {
                                 <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" placeholder="e.g. Premium Lager" required />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Retail Price (₹)</label>
-                                <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" placeholder="150" required />
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Price (₹)</label>
+                                <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" placeholder="0" required />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Units in Inventory</label>
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Product Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                    className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl appearance-none"
+                                    required
+                                >
+                                    {[
+                                        'Whiskey bottle',
+                                        'Beer bottle',
+                                        'Wine bottle',
+                                        'Vodka bottle',
+                                        'Rum bottle',
+                                        'Brandy bottle',
+                                        'Other'
+                                    ].map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Bottle Size</label>
+                                <select
+                                    value={formData.size}
+                                    onChange={e => setFormData({ ...formData, size: e.target.value })}
+                                    className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl appearance-none"
+                                    required
+                                >
+                                    {['180ml', '375ml', '750ml'].map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Discount (%)</label>
+                                <input type="number" value={formData.discount} onChange={e => setFormData({ ...formData, discount: Number(e.target.value) })} className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" placeholder="0" required />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Stock Quantity</label>
                                 <input type="number" value={formData.stock} onChange={e => setFormData({ ...formData, stock: Number(e.target.value) })} className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl" placeholder="50" required />
                             </div>
                         </div>

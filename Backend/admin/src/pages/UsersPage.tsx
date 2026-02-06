@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Filter, Edit2, Trash2, MoreVertical, UserPlus } from 'lucide-react';
+import { Search, Filter, Edit2, Trash2, MoreVertical, UserPlus, Camera, User as UserIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { motion } from 'framer-motion';
 import { Modal } from '../components/Modal';
@@ -18,7 +18,10 @@ export function UsersPage() {
         name: '',
         mobile: '',
         email: '',
-        address: ''
+        address: '',
+        isApproved: false,
+        rewardPoints: 0,
+        profilePic: ''
     });
 
     const filteredUsers = users.filter(u =>
@@ -27,7 +30,7 @@ export function UsersPage() {
     );
 
     const resetForm = () => {
-        setFormData({ name: '', mobile: '', email: '', address: '' });
+        setFormData({ name: '', mobile: '', email: '', address: '', isApproved: false, rewardPoints: 0, profilePic: '' });
         setSelectedUser(null);
     };
 
@@ -37,7 +40,10 @@ export function UsersPage() {
             name: user.name,
             mobile: user.mobile,
             email: user.email,
-            address: user.address
+            address: user.address,
+            isApproved: user.isApproved,
+            rewardPoints: user.rewardPoints,
+            profilePic: user.profilePic || ''
         });
         setIsModalOpen(true);
     };
@@ -99,7 +105,8 @@ export function UsersPage() {
                             <tr className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">
                                 <th className="px-8 py-5">User Name</th>
                                 <th className="px-8 py-5">Contact Details</th>
-                                <th className="px-8 py-5">Address</th>
+                                <th className="px-8 py-5">Rewards</th>
+                                <th className="px-8 py-5">Status</th>
                                 <th className="px-8 py-5">Registration Date</th>
                                 <th className="px-8 py-5 text-center">Actions</th>
                             </tr>
@@ -115,9 +122,13 @@ export function UsersPage() {
                                 >
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
-                                                {user.name.charAt(0)}
-                                            </div>
+                                            {user.profilePic ? (
+                                                <img src={user.profilePic} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                                                    {user.name.charAt(0)}
+                                                </div>
+                                            )}
                                             <span className="font-bold text-slate-900 dark:text-white">{user.name}</span>
                                         </div>
                                     </td>
@@ -126,7 +137,15 @@ export function UsersPage() {
                                         <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">{user.mobile}</div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 max-w-[200px] truncate">{user.address}</p>
+                                        <div className="flex items-center gap-1 text-amber-600 font-bold">
+                                            <span className="text-sm">{user.rewardPoints}</span>
+                                            <span className="text-[10px] uppercase tracking-tighter">Pts</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-6">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isApproved ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                            {user.isApproved ? 'Approved' : 'Pending'}
+                                        </span>
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="text-sm text-slate-800 dark:text-slate-200 font-medium">
@@ -170,6 +189,38 @@ export function UsersPage() {
                 description={selectedUser ? 'Update the information for this app user' : 'Create a new user account manually'}
             >
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="flex flex-col items-center pb-4">
+                        <div className="relative group">
+                            <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden border-2 border-slate-200 dark:border-slate-700">
+                                {formData.profilePic ? (
+                                    <img src={formData.profilePic} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <UserIcon className="w-10 h-10 text-slate-400" />
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => document.getElementById('user-pic-input')?.click()}
+                                className="absolute bottom-0 right-0 p-2 bg-amber-500 text-white rounded-full shadow-lg hover:scale-110 active:scale-90 transition-all"
+                            >
+                                <Camera className="w-4 h-4" />
+                            </button>
+                            <input
+                                id="user-pic-input"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => setFormData({ ...formData, profilePic: reader.result as string });
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Full Name</label>
@@ -208,12 +259,36 @@ export function UsersPage() {
                             <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Physical Address</label>
                             <textarea
                                 required
-                                rows={3}
+                                rows={2}
                                 value={formData.address}
                                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                                 placeholder="Hostel, Street, City..."
                                 className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
                             />
+                        </div>
+                        <div className="space-y-4 col-span-2 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">Admin Approval</h4>
+                                    <p className="text-xs text-slate-500">Allow this user to login and place orders</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, isApproved: !formData.isApproved })}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.isApproved ? 'bg-amber-500' : 'bg-slate-300'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.isApproved ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                            <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
+                                <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Adjust Reward Points</label>
+                                <input
+                                    type="number"
+                                    value={formData.rewardPoints}
+                                    onChange={(e) => setFormData({ ...formData, rewardPoints: Number(e.target.value) })}
+                                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
+                                />
+                            </div>
                         </div>
                     </div>
 

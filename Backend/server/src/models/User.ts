@@ -8,13 +8,32 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     address: { type: String, required: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    isApproved: { type: Boolean, default: function (this: any) { return this.role === 'admin'; } },
+    profilePic: { type: String, default: '' },
+    rewardPoints: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
+}, {
+    toJSON: {
+        transform: (doc, ret: any) => {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    },
+    toObject: {
+        transform: (doc, ret: any) => {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+userSchema.pre('save', async function () {
+    if (!this.isModified('password')) return;
     this.password = await bcrypt.hash(this.password, 10);
-    next();
 });
 
 export default mongoose.model('User', userSchema);

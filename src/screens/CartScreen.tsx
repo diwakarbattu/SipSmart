@@ -68,7 +68,10 @@ export function CartScreen() {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <h3 className="font-bold text-lg">{item.bottle.name}</h3>
-                                            <p className="text-muted-foreground text-xs">{item.bottle.description}</p>
+                                            <div className="flex flex-wrap gap-1">
+                                                {item.bottle.size && <span className="text-[10px] font-bold bg-accent/10 text-accent px-1.5 py-0.5 rounded">{item.bottle.size}</span>}
+                                                <p className="text-muted-foreground text-xs line-clamp-1">{item.bottle.description}</p>
+                                            </div>
                                         </div>
                                         <button
                                             onClick={() => removeItem(item.bottle.id)}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, MapPin, Home, Clock } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -15,60 +15,84 @@ import { motion } from "motion/react";
 import { useOrders } from "../state/OrderContext";
 import { useCart } from "../state/CartContext";
 import { toast } from "sonner";
+import { authService } from "../services/authService";
+import { userService } from "../services/userService";
 
 export function AddressScreen() {
   const navigate = useNavigate();
   const { items, totalPrice, clearCart } = useCart();
   const { addOrder } = useOrders();
 
-  const [hostelName, setHostelName] = useState("");
-  const [roomNumber, setRoomNumber] = useState("");
-  const [landmark, setLandmark] = useState("");
-  const [deliveryTime, setDeliveryTime] = useState("");
+  const [address, setAddress] = useState(() => {
+    const user = authService.getCurrentUser();
+    return user?.address || "";
+  });
+  const [pickupDate, setPickupDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [pickupTime, setPickupTime] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+  const [isLoading, setIsLoading] = useState(false);
 
   if (items.length === 0) {
     navigate("/home");
     return null;
   }
 
-  const handleConfirmOrder = () => {
-    if (!hostelName || !roomNumber || !deliveryTime) {
-      toast.error("Please fill in all required fields");
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const user = authService.getCurrentUser();
+        if (user) {
+          const profile = await userService.getProfile(user.id);
+          setAddress(profile.address || "");
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile address", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleConfirmOrder = async () => {
+    if (!address || !pickupDate || !pickupTime) {
+      toast.error("Please fill in all address and pickup details");
       return;
     }
 
-    // Prepare orders (in a real app, one order might contain multiple items)
-    // Here, we'll follow the existing Order structure which seems to be one bottle per order object, 
-    // or we can just mock the first one for the success screen summary.
-
-    // For simplicity in this prototype, let's just record the order history for the whole cart.
-    // If the Order type only supports one bottle, we'll pick the first one for the record, 
-    // or we can update the Order type in OrderContext.
-
-    // Let's assume we want to show the order placed successfully.
-    const firstItem = items[0];
-    const orderId = addOrder({
-      bottle: firstItem.bottle,
-      quantity: firstItem.quantity,
-      name: "User", // Mock name
-      phone: "1234567890", // Mock phone
-      hostel: hostelName,
-      room: roomNumber,
-      landmark,
-      deliveryTime,
-      totalPrice,
-    });
-
-    toast.success("Order Placed Successfully!");
-    clearCart();
-    navigate("/success", {
-      state: {
-        orderId,
-        items,
+    setIsLoading(true);
+    try {
+      const user = authService.getCurrentUser();
+      const orderData = {
+        userName: user?.name || "Guest",
+        mobile: user?.mobile || "N/A",
+        productList: items.map(item => ({
+          productId: item.bottle.id,
+          name: item.bottle.name,
+          price: item.bottle.price,
+          quantity: item.quantity
+        })),
         totalPrice,
-        deliveryTime: deliveryTime === '30min' ? '30 mins' : deliveryTime.replace('hour', ' hr').replace('hours', ' hrs')
-      },
-    });
+        address,
+        pickupDate,
+        pickupTime
+      };
+
+      const orderId = await addOrder(orderData);
+
+      toast.success("Order Placed Successfully!");
+      clearCart();
+      navigate("/success", {
+        state: {
+          orderId,
+          items,
+          totalPrice,
+          pickupDate,
+          pickupTime
+        },
+      });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to place order");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -95,65 +119,44 @@ export function AddressScreen() {
           className="space-y-4"
         >
           <div className="space-y-2">
-            <Label htmlFor="hostel" className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Home className="w-4 h-4" />
-              Hostel Name
+            <Label htmlFor="address" className="flex items-center gap-2 text-muted-foreground mb-1">
+              <MapPin className="w-4 h-4" />
+              Delivery Address
             </Label>
             <Input
-              id="hostel"
+              id="address"
               type="text"
-              placeholder="e.g. Boys Hostel 1"
-              value={hostelName}
-              onChange={(e) => setHostelName(e.target.value)}
+              placeholder="e.g. Landmark, Hostel name, Room"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
               className="h-14 rounded-2xl bg-card border-border focus:ring-accent"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="room" className="text-muted-foreground mb-1">Room Number</Label>
+              <Label htmlFor="date" className="text-muted-foreground mb-1">Pickup Date</Label>
               <Input
-                id="room"
-                type="text"
-                placeholder="e.g. 302"
-                value={roomNumber}
-                onChange={(e) => setRoomNumber(e.target.value)}
+                id="date"
+                type="date"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
                 className="h-14 rounded-2xl bg-card border-border focus:ring-accent"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="time" className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Clock className="w-4 h-4" />
-                Delivery
+                Pickup Time
               </Label>
-              <Select value={deliveryTime} onValueChange={setDeliveryTime}>
-                <SelectTrigger className="h-14 rounded-2xl bg-card border-border">
-                  <SelectValue placeholder="Time" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="As soon as possible">As soon as possible</SelectItem>
-                  <SelectItem value="30min">30 Mins</SelectItem>
-                  <SelectItem value="1hour">1 Hour</SelectItem>
-                  <SelectItem value="2hours">2 Hours</SelectItem>
-                  <SelectItem value="evening">Evening</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                id="time"
+                type="time"
+                value={pickupTime}
+                onChange={(e) => setPickupTime(e.target.value)}
+                className="h-14 rounded-2xl bg-card border-border focus:ring-accent"
+              />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="landmark" className="flex items-center gap-2 text-muted-foreground mb-1">
-              <MapPin className="w-4 h-4" />
-              Landmark (Optional)
-            </Label>
-            <Input
-              id="landmark"
-              type="text"
-              placeholder="e.g. Near Canteen"
-              value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
-              className="h-14 rounded-2xl bg-card border-border focus:ring-accent"
-            />
           </div>
         </motion.div>
 
@@ -179,9 +182,10 @@ export function AddressScreen() {
       <div className="px-6 py-8 bg-card border-t border-border">
         <Button
           onClick={handleConfirmOrder}
-          className="w-full h-16 rounded-2xl bg-success hover:bg-success/90 text-success-foreground shadow-2xl shadow-success/20 text-lg font-bold"
+          disabled={isLoading}
+          className="w-full h-16 rounded-2xl bg-success hover:bg-success/90 text-success-foreground shadow-2xl shadow-success/20 text-lg font-bold transition-all active:scale-95"
         >
-          Confirm Order
+          {isLoading ? "Placing Order..." : "Confirm Order"}
         </Button>
       </div>
     </div>

@@ -1,15 +1,22 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Package, Pencil, X, Home, ShoppingCart, ShoppingBag, User } from "lucide-react";
+import { Package, Pencil, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useOrders } from "../state/OrderContext";
 import { Button } from "../components/ui/button";
 import { useCart } from "../state/CartContext";
+import { BottomNav } from "../components/BottomNav";
 
 export function OrdersScreen() {
   const navigate = useNavigate();
   const { orders, cancelOrder } = useOrders();
   const { totalItems } = useCart();
-  const activeTab = "orders";
+  const [orderTab, setOrderTab] = useState<"active" | "history">("active");
+
+  const filteredOrders = orders.filter(o => {
+    if (orderTab === "active") return ["Pending", "Accepted"].includes(o.status);
+    return ["Delivered", "Cancelled"].includes(o.status);
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-background pb-24">
@@ -20,19 +27,47 @@ export function OrdersScreen() {
         </p>
       </div>
 
+      {/* Custom Tabs */}
+      <div className="px-6 pb-6">
+        <div className="flex bg-secondary/50 p-1 rounded-2xl relative">
+          <motion.div
+            layoutId="activeTab"
+            className="absolute bg-card rounded-xl shadow-sm top-1 bottom-1 left-1 w-[calc(50%-4px)]"
+            initial={false}
+            animate={{
+              x: orderTab === "history" ? "100%" : "0%"
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          />
+          <button
+            onClick={() => setOrderTab("active")}
+            className={`flex-1 relative z-10 py-3 text-sm font-bold text-center transition-colors ${orderTab === "active" ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            Active Orders
+          </button>
+          <button
+            onClick={() => setOrderTab("history")}
+            className={`flex-1 relative z-10 py-3 text-sm font-bold text-center transition-colors ${orderTab === "history" ? "text-foreground" : "text-muted-foreground"}`}
+          >
+            Order History
+          </button>
+        </div>
+      </div>
+
       <motion.div
+        key={orderTab}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="flex-1 px-6 space-y-4 overflow-y-auto"
       >
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
             <Package className="w-16 h-16 mb-4" strokeWidth={1} />
-            <p>No orders yet. Start shopping!</p>
+            <p>No {orderTab} orders found.</p>
           </div>
         ) : (
-          orders.map((o, index) => (
+          filteredOrders.map((o, index) => (
             <motion.div
               key={o.id}
               initial={{ opacity: 0, x: -20 }}
@@ -41,32 +76,42 @@ export function OrdersScreen() {
               className="bg-card rounded-3xl p-5 border border-border shadow-sm"
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="flex gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center overflow-hidden">
-                    <img src={o.bottle.image} className="w-full h-full object-cover" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold flex items-center gap-2">
-                      {o.bottle.name}
-                      <span className="text-[10px] bg-secondary px-2 py-0.5 rounded-full text-muted-foreground">{o.id}</span>
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {o.quantity} {o.quantity === 1 ? 'bottle' : 'bottles'} • Chilled
-                    </p>
+                <div className="flex-1 space-y-3">
+                  {o.productList.map((item, idx) => (
+                    <div key={idx} className="flex gap-4 items-center">
+                      <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20">
+                        <Package className="w-5 h-5 text-accent" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm">{item.name}</h3>
+                        <p className="text-[10px] text-muted-foreground">{item.quantity} x ₹{item.price}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-2">
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">Pickup Date/Time</p>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{o.pickupDate} • {o.pickupTime}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="font-black text-accent text-lg">₹{o.totalPrice}</p>
-                  <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider ${o.status === 'delivered' ? 'bg-success/20 text-success' :
-                      o.status === 'cancelled' ? 'bg-destructive/20 text-destructive' :
-                        'bg-yellow-500/20 text-yellow-500'
+                  <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase tracking-wider ${o.status === 'Delivered' ? 'bg-emerald-500/20 text-emerald-500' :
+                    o.status === 'Cancelled' ? 'bg-rose-500/20 text-rose-500' :
+                      o.status === 'Accepted' ? 'bg-sky-500/20 text-sky-500' :
+                        'bg-amber-500/20 text-amber-500'
                     }`}>
                     {o.status}
                   </span>
+                  {o.rewardPointsEarned > 0 && (
+                    <div className="mt-2 text-[10px] font-black text-amber-600 uppercase flex items-center justify-end gap-1">
+                      <span>+{o.rewardPointsEarned}</span>
+                      <span>Pts</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {o.status === "pending" && (
+              {o.status === "Pending" && (
                 <div className="flex gap-3 pt-4 border-t border-border/50">
                   <Button
                     onClick={() => navigate("/order", { state: { order: o, edit: true } })}
@@ -92,40 +137,7 @@ export function OrdersScreen() {
       </motion.div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-border px-6 py-4 shadow-2xl z-20">
-        <div className="flex justify-around items-center max-w-md mx-auto">
-          <button
-            onClick={() => navigate("/home")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors"
-          >
-            <Home className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Home</span>
-          </button>
-          <button
-            onClick={() => navigate("/cart")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors relative"
-          >
-            <ShoppingCart className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Cart</span>
-            {totalItems > 0 && <span className="absolute top-0 right-1 w-2 h-2 bg-accent rounded-full border border-card" />}
-          </button>
-          <button
-            onClick={() => navigate("/orders")}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "orders" ? "text-accent" : "text-muted-foreground"
-              }`}
-          >
-            <ShoppingBag className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Orders</span>
-          </button>
-          <button
-            onClick={() => navigate("/profile")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors"
-          >
-            <User className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Profile</span>
-          </button>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }

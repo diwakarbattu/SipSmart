@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Search, Home, ShoppingCart, ShoppingBag, User, Plus, Minus } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { motion, AnimatePresence } from "motion/react";
+import { BottomNav } from "../components/BottomNav";
 import { useCart } from "../state/CartContext";
 import { Bottle } from "../state/OrderContext";
 import { toast } from "sonner";
 import logo from "../components/logo.png";
+import { authService } from "../services/authService";
 import { bottleService } from "../services/bottleService";
 import { socketService } from "../services/socketService";
 
@@ -59,14 +61,16 @@ export function BottleListScreen() {
   }, []);
 
   const filteredBottles = bottles.filter((bottle) =>
-    bottle.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    bottle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    bottle.type?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const updateQuantity = (id: string, change: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [id]: Math.max(0, (prev[id] || 0) + change),
-    }));
+    setQuantities((prev) => {
+      const current = prev[id] || 1;
+      const newValue = Math.max(1, current + change);
+      return { ...prev, [id]: newValue };
+    });
   };
 
   const handleAddToCart = (bottle: Bottle) => {
@@ -77,7 +81,7 @@ export function BottleListScreen() {
     }
     addItem(bottle, qty);
     toast.success(`${qty} x ${bottle.name} added to cart`);
-    setQuantities(prev => ({ ...prev, [bottle.id]: 0 }));
+    setQuantities(prev => ({ ...prev, [bottle.id]: 1 }));
   };
 
   return (
@@ -96,7 +100,7 @@ export function BottleListScreen() {
               </div>
               <div>
                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Welcome back</p>
-                <h1 className="text-xl font-black tracking-tight">Hello, Friend!</h1>
+                <h1 className="text-xl font-black tracking-tight">Hello, {authService.getCurrentUser()?.name || 'Friend'}!</h1>
               </div>
             </div>
             <button
@@ -151,86 +155,72 @@ export function BottleListScreen() {
                   alt={bottle.name}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
-                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg">
+                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex flex-col items-end">
                   <p className="text-accent text-xs font-bold">₹{bottle.price}</p>
+                  {(bottle.discount ?? 0) > 0 && (
+                    <p className="text-[8px] text-emerald-400 font-bold leading-none">-{bottle.discount}% OFF</p>
+                  )}
+                </div>
+                <div className="absolute bottom-2 left-2 flex gap-1">
+                  {bottle.type && (
+                    <div className="bg-accent/80 backdrop-blur-sm px-2 py-0.5 rounded-md">
+                      <p className="text-[8px] text-accent-foreground font-black uppercase tracking-tighter">{bottle.type}</p>
+                    </div>
+                  )}
+                  {bottle.size && (
+                    <div className="bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-md">
+                      <p className="text-[8px] text-white font-black uppercase tracking-tighter">{bottle.size}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Bottle Info */}
               <div className="space-y-1 mb-3 flex-1">
                 <h3 className="font-bold text-sm leading-tight h-10 line-clamp-2">{bottle.name}</h3>
-                <p className="text-muted-foreground text-[10px]">
+                <p className="text-muted-foreground text-[8px] line-clamp-3 mb-1 font-12">
                   {bottle.description}
                 </p>
+                <p className="text-accent font-black text-lg">₹{bottle.price}</p>
               </div>
 
-              {/* Quantity Selector */}
-              <div className="flex items-center justify-between mb-3 bg-secondary/50 rounded-xl p-1.5">
-                <button
-                  onClick={() => updateQuantity(bottle.id.toString(), -1)}
-                  className="w-8 h-8 rounded-lg bg-card flex items-center justify-center hover:bg-accent/20 transition-colors border border-border/50"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="font-bold text-sm">
-                  {quantities[bottle.id.toString()] || 0}
-                </span>
-                <button
-                  onClick={() => updateQuantity(bottle.id.toString(), 1)}
-                  className="w-8 h-8 rounded-lg bg-card flex items-center justify-center hover:bg-accent/20 transition-colors border border-border/50"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
+              {/* Action Area */}
+              <div className="flex gap-2">
+                {/* Quantity Selector */}
+                <div className="flex items-center bg-secondary/50 rounded-xl p-1 shrink-0">
+                  <button
+                    onClick={() => updateQuantity(bottle.id.toString(), -1)}
+                    className="w-8 h-8 rounded-lg bg-card flex items-center justify-center hover:bg-accent/20 transition-colors border border-border/50"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="font-bold text-sm w-6 text-center">
+                    {quantities[bottle.id.toString()] || 1}
+                  </span>
+                  <button
+                    onClick={() => updateQuantity(bottle.id.toString(), 1)}
+                    className="w-8 h-8 rounded-lg bg-card flex items-center justify-center hover:bg-accent/20 transition-colors border border-border/50"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
 
-              {/* Add to Cart Button */}
-              <Button
-                onClick={() => handleAddToCart(bottle)}
-                className="w-full h-10 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs"
-                disabled={bottle.stock === 0}
-              >
-                {bottle.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-              </Button>
+                {/* Add to Cart Button */}
+                <Button
+                  onClick={() => handleAddToCart(bottle)}
+                  className="flex-1 h-10 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs"
+                  disabled={bottle.stock === 0}
+                >
+                  {bottle.stock === 0 ? 'Out' : 'Add'}
+                </Button>
+              </div>
             </motion.div>
           ))}
         </div>
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card/80 backdrop-blur-xl border-t border-border px-6 py-4 shadow-2xl z-20">
-        <div className="flex justify-around items-center max-w-md mx-auto">
-          <button
-            onClick={() => navigate("/home")}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === "home" ? "text-accent" : "text-muted-foreground"
-              }`}
-          >
-            <Home className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Home</span>
-          </button>
-          <button
-            onClick={() => navigate("/cart")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors relative"
-          >
-            <ShoppingCart className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Cart</span>
-            {totalItems > 0 && <span className="absolute top-0 right-1 w-2 h-2 bg-accent rounded-full border border-card" />}
-          </button>
-          <button
-            onClick={() => navigate("/orders")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors"
-          >
-            <ShoppingBag className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Orders</span>
-          </button>
-          <button
-            onClick={() => navigate("/profile")}
-            className="flex flex-col items-center gap-1 text-muted-foreground hover:text-accent transition-colors"
-          >
-            <User className="w-6 h-6" />
-            <span className="text-[10px] font-medium">Profile</span>
-          </button>
-        </div>
-      </div>
+      <BottomNav />
     </div>
   );
 }

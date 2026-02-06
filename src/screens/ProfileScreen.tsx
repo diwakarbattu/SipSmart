@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { useOrders } from "../state/OrderContext";
 import { useCart } from "../state/CartContext";
 import { userService, UserProfile } from "../services/userService";
+import { authService } from "../services/authService";
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -13,24 +14,20 @@ export function ProfileScreen() {
   const { orders } = useOrders();
   const activeTab = "profile";
 
-  const [user, setUser] = useState<UserProfile>({
-    name: "Amit Kumar",
-    phone: "+91 98765 43210",
-    hostel: "Boys Hostel A",
-    room: "302"
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       setIsLoading(true);
       try {
-        const data = await userService.getProfile();
-        if (data) {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser) {
+          const data = await userService.getProfile(currentUser.id);
           setUser(data);
         }
       } catch (err) {
-        console.error("Failed to fetch profile, using local data", err);
+        console.error("Failed to fetch profile", err);
       } finally {
         setIsLoading(false);
       }
@@ -46,20 +43,30 @@ export function ProfileScreen() {
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-accent to-yellow-500 p-0.5 shadow-xl animate-float">
               <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
-                <User className="w-8 h-8 text-accent" strokeWidth={1.5} />
+                {user?.profilePic ? (
+                  <img src={user.profilePic} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8 text-accent" strokeWidth={1.5} />
+                )}
               </div>
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-tight">{user.name}</h2>
+              <h2 className="text-xl font-black tracking-tight">{user?.name || "Guest"}</h2>
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Prime Member</p>
             </div>
           </div>
-          <button
-            onClick={() => navigate("/profile/edit")}
-            className="bg-accent/10 text-accent p-3 rounded-2xl shadow-sm border border-accent/20 hover:scale-105 active:scale-95 transition-all"
-          >
-            <Edit3 className="w-5 h-5" />
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              onClick={() => navigate("/profile/edit")}
+              className="bg-accent/10 text-accent p-3 rounded-2xl shadow-sm border border-accent/20 hover:scale-105 active:scale-95 transition-all"
+            >
+              <Edit3 className="w-5 h-5" />
+            </button>
+            <div className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl flex items-center gap-2">
+              <span className="text-amber-600 font-black text-xs">₹{user?.rewardPoints || 0}</span>
+              <span className="text-[8px] font-bold text-amber-600 uppercase">Rewards</span>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -69,22 +76,20 @@ export function ProfileScreen() {
         animate={{ y: 0, opacity: 1 }}
         className="flex flex-col items-center"
       >
-        <div className="bg-secondary/30 p-2 flex items-center hover-lift">
-          <div className="bg-accent/10 p-2">
+        <div className="bg-secondary/30 p-2 flex items-center hover-lift rounded-xl w-full max-w-xs mb-2">
+          <div className="bg-accent/10 p-2 rounded-lg mr-3">
             <Phone className="w-4 h-4 text-accent" />
           </div>
           <div>
-            {/* <p className="text-[10px] text-muted-foreground font-bold uppercase">Phone</p> */}
-            <p className="text-xs font-bold">{user.phone}</p>
+            <p className="text-xs font-bold">{user?.mobile || "N/A"}</p>
           </div>
         </div>
-        <div className="bg-secondary/30 p-1 flex items-center hover-lift">
-          <div className="bg-accent/10 p-2 ">
+        <div className="bg-secondary/30 p-2 flex items-center hover-lift rounded-xl w-full max-w-xs">
+          <div className="bg-accent/10 p-2 rounded-lg mr-3">
             <MapPin className="w-4 h-4 text-accent" />
           </div>
           <div>
-            {/* <p className="text-[10px] text-muted-foreground font-bold uppercase">Address</p> */}
-            <p className="text-xs font-bold">Room {user.room}, {user.hostel}</p>
+            <p className="text-xs font-bold">{user?.address || "No address set"}</p>
           </div>
         </div>
       </motion.div>

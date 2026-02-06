@@ -30,8 +30,8 @@ export function RegistrationScreen() {
         setIsLoading(true);
         try {
             await authService.register({ name, mobile, email, password, address, role: 'user' });
-            toast.success("Account created successfully!");
-            navigate('/home');
+            toast.success("Registration successful! Your account is pending admin approval.");
+            navigate('/login');
         } catch (err: any) {
             toast.error(err.response?.data?.message || "Registration failed");
         } finally {

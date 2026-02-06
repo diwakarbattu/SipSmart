@@ -14,6 +14,22 @@ router.get('/', authenticate, authorize(['admin']), async (req, res) => {
     }
 });
 
+// Get user by ID (Admin or Self)
+router.get('/:id', authenticate, async (req: any, res) => {
+    try {
+        if (req.user.role !== 'admin' && req.user.id !== req.params.id) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        res.json(user);
+    } catch (err: any) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
 // Update user (Admin or Self)
 router.put('/:id', authenticate, async (req: any, res) => {
     try {
@@ -22,8 +38,23 @@ router.put('/:id', authenticate, async (req: any, res) => {
             return res.status(403).json({ message: 'Forbidden' });
         }
 
-        const { name, mobile, email, address } = req.body;
-        const user = await User.findByIdAndUpdate(req.params.id, { name, mobile, email, address }, { new: true });
+        // Dynamically build update object to avoid overwriting with undefined
+        const updates: any = {};
+        const allowedUpdates = ['name', 'mobile', 'email', 'address', 'isApproved', 'rewardPoints', 'profilePic'];
+
+        allowedUpdates.forEach(field => {
+            if (req.body[field] !== undefined) {
+                updates[field] = req.body[field];
+            }
+        });
+
+        // Prevent non-admins from updating restricted fields
+        if (req.user.role !== 'admin') {
+            delete updates.isApproved;
+            delete updates.rewardPoints;
+        }
+
+        const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true });
 
         if (!user) return res.status(404).json({ message: 'User not found' });
         res.json(user);

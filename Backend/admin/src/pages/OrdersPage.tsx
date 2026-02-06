@@ -7,7 +7,7 @@ import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import type { Order } from '../types';
 
 export function OrdersPage() {
-    const { orders, updateOrderStatus, deleteOrder, products } = useData();
+    const { orders, updateOrderStatus, deleteOrder } = useData();
     const [activeTab, setActiveTab] = useState('All');
     const [search, setSearch] = useState('');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -47,7 +47,7 @@ export function OrdersPage() {
         <div className="space-y-6">
             <div className="flex flex-col lg:flex-row gap-6 justify-between items-center">
                 <div className="flex bg-white dark:bg-slate-900 p-1.5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
-                    {['All', 'In Progress', 'Completed', 'Cancelled'].map((tab) => (
+                    {['All', 'Pending', 'Accepted', 'Delivered', 'Cancelled'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -101,21 +101,30 @@ export function OrdersPage() {
                                         <div className="text-xs text-slate-400 dark:text-slate-500 font-medium">{order.mobile}</div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-6 h-6 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                                                {order.quantity}x
-                                            </span>
-                                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{order.productName}</span>
+                                        <div className="space-y-1">
+                                            {order.productList?.map((item, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <span className="w-6 h-6 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                                        {item.quantity}x
+                                                    </span>
+                                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{item.name}</span>
+                                                </div>
+                                            ))}
+                                            <div className="text-[10px] text-slate-400 font-bold uppercase mt-2">
+                                                Pickup: {order.pickupDate} at {order.pickupTime}
+                                            </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-sm font-black text-slate-900 dark:text-white">₹{order.totalPrice}</td>
                                     <td className="px-8 py-6">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight flex items-center gap-2 w-fit ${order.status === 'Completed' ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
-                                            order.status === 'In Progress' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800' :
-                                                'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight flex items-center gap-2 w-fit ${order.status === 'Delivered' ? 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                                            order.status === 'Pending' ? 'bg-amber-100 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                                                order.status === 'Accepted' ? 'bg-sky-100 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400' :
+                                                    'bg-rose-100 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
                                             }`}>
-                                            {order.status === 'In Progress' && <Clock className="w-3 h-3 animate-spin" />}
-                                            {order.status === 'Completed' && <Check className="w-3 h-3" />}
+                                            {order.status === 'Pending' && <Clock className="w-3 h-3" />}
+                                            {order.status === 'Accepted' && <Clock className="w-3 h-3 animate-pulse" />}
+                                            {order.status === 'Delivered' && <Check className="w-3 h-3" />}
                                             {order.status === 'Cancelled' && <X className="w-3 h-3" />}
                                             {order.status}
                                         </span>
@@ -146,25 +155,6 @@ export function OrdersPage() {
             >
                 <form onSubmit={handleUpdate} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Product</label>
-                            <select
-                                value={editFormData.productName}
-                                onChange={e => setEditFormData({ ...editFormData, productName: e.target.value })}
-                                className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
-                            >
-                                {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Quantity</label>
-                            <input
-                                type="number"
-                                value={editFormData.quantity}
-                                onChange={e => setEditFormData({ ...editFormData, quantity: Number(e.target.value) })}
-                                className="w-full px-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white"
-                            />
-                        </div>
                         <div className="space-y-1 col-span-2">
                             <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Delivery Address</label>
                             <textarea
@@ -176,8 +166,8 @@ export function OrdersPage() {
                         </div>
                         <div className="space-y-1 col-span-2">
                             <label className="text-xs font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest pl-1">Lifecycle Status</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {['In Progress', 'Completed', 'Cancelled'].map(s => (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {['Pending', 'Accepted', 'Delivered', 'Cancelled'].map(s => (
                                     <button
                                         key={s}
                                         type="button"

@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User, Product, Order, Notification } from '../types';
+import type { User, Product, Order, Notification, Offer } from '../types';
 import { toast } from 'sonner';
 import { userService } from '../services/userService';
 import { productService } from '../services/productService';
 import { orderService } from '../services/orderService';
+import { offerService } from '../services/offerService';
 import { io } from 'socket.io-client';
 
 interface DataContextType {
     users: User[];
     products: Product[];
     orders: Order[];
+    offers: Offer[];
     notifications: Notification[];
     isLoading: boolean;
 
@@ -24,6 +26,10 @@ interface DataContextType {
     updateOrderStatus: (id: string, status: Order['status']) => Promise<void>;
     deleteOrder: (id: string) => Promise<void>;
 
+    addOffer: (offer: any) => Promise<void>;
+    updateOffer: (id: string, offer: any) => Promise<void>;
+    deleteOffer: (id: string) => Promise<void>;
+
     markAsRead: (id: string) => void;
     markAllAsRead: () => void;
     refreshAll: () => void;
@@ -37,22 +43,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const [users, setUsers] = useState<User[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
+    const [offers, setOffers] = useState<Offer[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchData = async () => {
+        const token = localStorage.getItem('admin_token');
+        if (!token) {
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         try {
-            const [u, p, o] = await Promise.all([
+            const [u, p, o, off] = await Promise.all([
                 userService.getUsers(),
                 productService.getProducts(),
-                orderService.getOrders()
+                orderService.getOrders(),
+                offerService.getOffers()
             ]);
             setUsers(u);
             setProducts(p);
             setOrders(o);
-        } catch (err) {
-            toast.error('Failed to load dashboard data');
+            setOffers(off);
+        } catch (err: any) {
+            console.error('Failed to load dashboard data:', err);
+            toast.error('Data Sync Failure', {
+                description: err.response?.data?.message || err.message || 'Could not retrieve information'
+            });
         } finally {
             setIsLoading(false);
         }
@@ -77,6 +95,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         socket.on('product_added', (p) => setProducts(prev => [p, ...prev]));
         socket.on('product_updated', (p) => setProducts(prev => prev.map(old => old.id === p.id ? p : old)));
         socket.on('product_deleted', (id) => setProducts(prev => prev.filter(p => p.id !== id)));
+
+        socket.on('user_registered', (user) => {
+            setUsers(prev => [user, ...prev]);
+            toast.info(`New User Registration: ${user.name}`);
+        });
 
         return () => {
             socket.disconnect();
@@ -156,12 +179,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         toast('All notifications marked as read');
     };
 
+    const addOffer = async (data: any) => {
+        try {
+            const o = await offerService.addOffer(data);
+            setOffers(prev => [o, ...prev]);
+            toast.success('Offer created');
+        } catch (err) { toast.error('Failed to create offer'); }
+    };
+
+    const updateOffer = async (id: string, data: any) => {
+        try {
+            const o = await offerService.updateOffer(id, data);
+            setOffers(prev => prev.map(old => old.id === id ? o : old));
+            toast.success('Offer updated');
+        } catch (err) { toast.error('Update failed'); }
+    };
+
+    const deleteOffer = async (id: string) => {
+        try {
+            await offerService.deleteOffer(id);
+            setOffers(prev => prev.filter(o => o.id !== id));
+            toast.success('Offer deleted');
+        } catch (err) { toast.error('Deletion failed'); }
+    };
+
     return (
         <DataContext.Provider value={{
-            users, products, orders, notifications, isLoading,
+            users, products, orders, offers, notifications, isLoading,
             addUser, updateUser, deleteUser,
             addProduct, updateProduct, deleteProduct,
             updateOrderStatus, deleteOrder,
+            addOffer, updateOffer, deleteOffer,
             markAsRead, markAllAsRead, refreshAll: fetchData
         }}>
             {children}

@@ -24,8 +24,26 @@ export const authService = {
         localStorage.removeItem('user_data');
     },
 
+    changePassword: async (currentPassword: string, newPassword: string) => {
+        // Placeholder: Needs backend implementation
+        return api.post('/auth/change-password', { currentPassword, newPassword });
+    },
+
+    deleteAccount: async () => {
+        // Placeholder: Needs backend implementation
+        return api.delete('/auth/account');
+    },
+
     getCurrentUser: () => {
         const data = localStorage.getItem('user_data');
         return data ? JSON.parse(data) : null;
+    },
+
+    updateCurrentUser: (userData: any) => {
+        const currentUser = authService.getCurrentUser();
+        if (currentUser) {
+            const updatedUser = { ...currentUser, ...userData };
+            localStorage.setItem('user_data', JSON.stringify(updatedUser));
+        }
     }
 };

@@ -1,8 +1,22 @@
 import express from 'express';
 import Product from '../models/Product';
 import { authenticate, authorize } from '../middleware/auth';
+import multer from 'multer';
+import path from 'path';
 
 const router = express.Router();
+
+// Multer Configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage });
 
 // Get all products
 router.get('/', async (req, res) => {
@@ -15,9 +29,14 @@ router.get('/', async (req, res) => {
 });
 
 // Add Product (Admin Only)
-router.post('/', authenticate, authorize(['admin']), async (req, res) => {
+router.post('/', authenticate, authorize(['admin']), upload.single('image'), async (req: any, res) => {
     try {
-        const product = new Product(req.body);
+        const productData = { ...req.body };
+        if (req.file) {
+            productData.image = `http://localhost:5000/uploads/${req.file.filename}`;
+        }
+
+        const product = new Product(productData);
         await product.save();
 
         // Notify all clients about the new product
@@ -31,9 +50,14 @@ router.post('/', authenticate, authorize(['admin']), async (req, res) => {
 });
 
 // Update Product (Admin Only)
-router.put('/:id', authenticate, authorize(['admin']), async (req, res) => {
+router.put('/:id', authenticate, authorize(['admin']), upload.single('image'), async (req: any, res) => {
     try {
-        const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const updateData = { ...req.body };
+        if (req.file) {
+            updateData.image = `http://localhost:5000/uploads/${req.file.filename}`;
+        }
+
+        const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!product) return res.status(404).json({ message: 'Product not found' });
 
         // Notify all clients about the update

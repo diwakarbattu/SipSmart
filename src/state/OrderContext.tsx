@@ -3,7 +3,7 @@ import { orderService } from "../services/orderService";
 import { socketService } from "../services/socketService";
 import { authService } from "../services/authService";
 
-export type OrderStatus = "In Progress" | "Completed" | "Cancelled";
+export type OrderStatus = "Pending" | "Accepted" | "Delivered" | "Cancelled";
 
 export interface Bottle {
   id: string;
@@ -11,6 +11,9 @@ export interface Bottle {
   price: number;
   image: string;
   description: string;
+  type?: string;
+  size?: string;
+  discount?: number;
   stock?: number;
 }
 
@@ -26,7 +29,10 @@ export interface Order {
   productList: OrderItem[];
   totalPrice: number;
   address: string;
+  pickupDate: string;
+  pickupTime: string;
   status: OrderStatus;
+  rewardPointsEarned: number;
   createdAt: string;
 }
 

@@ -2,6 +2,7 @@ import express from 'express';
 import Order from '../models/Order';
 import Product from '../models/Product';
 import Notification from '../models/Notification';
+import User from '../models/User';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = express.Router();
@@ -9,7 +10,7 @@ const router = express.Router();
 // Create Order
 router.post('/', authenticate, async (req: any, res) => {
     try {
-        const { productList, totalPrice, address } = req.body;
+        const { productList, totalPrice, address, pickupDate, pickupTime } = req.body;
 
         // Check stock for each product
         for (const item of productList) {
@@ -27,7 +28,9 @@ router.post('/', authenticate, async (req: any, res) => {
             productList,
             totalPrice,
             address,
-            status: 'In Progress'
+            pickupDate,
+            pickupTime,
+            status: 'Pending'
         });
         await order.save();
 
@@ -62,8 +65,22 @@ router.post('/', authenticate, async (req: any, res) => {
 router.patch('/:id/status', authenticate, authorize(['admin']), async (req, res) => {
     try {
         const { status } = req.body;
-        const order = await Order.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Order not found' });
+
+        const oldStatus = order.status;
+        order.status = status;
+
+        // If order marked as Delivered, award flat 10 reward points
+        if (status === 'Delivered' && oldStatus !== 'Delivered') {
+            const points = 10;
+            order.rewardPointsEarned = points;
+            await User.findByIdAndUpdate(order.userId, {
+                $inc: { rewardPoints: points }
+            });
+        }
+
+        await order.save();
 
         // Socket.io: Notify User
         const io = req.app.get('io');

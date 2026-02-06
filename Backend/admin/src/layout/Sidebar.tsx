@@ -6,7 +6,8 @@ import {
     ShoppingBag,
     Bell,
     Settings,
-    LogOut
+    LogOut,
+    Tag
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { clsx, type ClassValue } from 'clsx';
@@ -21,6 +22,7 @@ const menuItems = [
     { icon: Users, label: 'Users', path: '/users' },
     { icon: Beer, label: 'Products', path: '/products' },
     { icon: ShoppingBag, label: 'Orders', path: '/orders' },
+    { icon: Tag, label: 'Offers', path: '/offers' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
     { icon: Settings, label: 'Settings', path: '/settings' },
 ];

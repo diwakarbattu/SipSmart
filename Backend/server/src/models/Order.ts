@@ -14,12 +14,32 @@ const orderSchema = new mongoose.Schema({
     ],
     totalPrice: { type: Number, required: true },
     address: { type: String, required: true },
+    pickupDate: { type: String },
+    pickupTime: { type: String },
+    rewardPointsEarned: { type: Number, default: 0 },
     status: {
         type: String,
-        enum: ['In Progress', 'Completed', 'Cancelled'],
-        default: 'In Progress'
+        enum: ['Pending', 'Accepted', 'Delivered', 'Cancelled'],
+        default: 'Pending'
     },
     createdAt: { type: Date, default: Date.now },
+}, {
+    toJSON: {
+        transform: (doc, ret: any) => {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    },
+    toObject: {
+        transform: (doc, ret: any) => {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    }
 });
 
 export default mongoose.model('Order', orderSchema);
