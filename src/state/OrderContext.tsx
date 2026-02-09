@@ -42,6 +42,7 @@ interface OrdersContextValue {
   error: string | null;
   addOrder: (o: any) => Promise<string>;
   cancelOrder: (id: string) => Promise<void>;
+  updateOrder: (id: string, updates: any) => Promise<void>;
   getOrder: (id: string) => Order | undefined;
   refreshOrders: () => Promise<void>;
 }
@@ -59,7 +60,7 @@ export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await orderService.getOrders();
+      const data = await orderService.getMyOrders();
       setOrders(data);
     } catch (err: any) {
       setError(err.message || "Failed to fetch orders");
@@ -99,14 +100,27 @@ export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const cancelOrder = async (id: string) => {
+  const cancelOrder = async (id: string, cancelReason?: string) => {
     try {
-      await orderService.updateOrderStatus(id, "Cancelled");
+      await orderService.cancelOrder(id, cancelReason);
       setOrders((s) =>
         s.map((o) => (o.id === id ? { ...o, status: "Cancelled" } : o)),
       );
     } catch (err: any) {
       setError(err.message || "Failed to cancel order");
+      throw err;
+    }
+  };
+
+  const updateOrder = async (id: string, updates: any) => {
+    try {
+      const updatedOrder = await orderService.modifyOrder(id, updates);
+      setOrders((s) =>
+        s.map((o) => (o.id === id ? updatedOrder : o)),
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to update order");
+      throw err;
     }
   };
 
@@ -120,6 +134,7 @@ export const OrdersProvider: React.FC<{ children: React.ReactNode }> = ({
         error,
         addOrder,
         cancelOrder,
+        updateOrder,
         getOrder,
         refreshOrders: fetchOrders
       }}

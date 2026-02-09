@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Edit2, Trash2, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { productService } from '../services/productService';
+import { Pagination } from '../components/Pagination';
 import { motion } from 'framer-motion';
 import { Modal } from '../components/Modal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import type { Product } from '../types';
 
 export function ProductsPage() {
-    const { products, addProduct, updateProduct, deleteProduct } = useData();
+    const { addProduct, updateProduct, deleteProduct } = useData();
+    const [products, setProducts] = useState<Product[]>([]);
+    const [pagination, setPagination] = useState<any>(null);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
     const [search, setSearch] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -25,6 +31,20 @@ export function ProductsPage() {
         stock: 0,
         description: '',
     });
+
+    const fetchProducts = useCallback(async () => {
+        try {
+            const result = await productService.getProducts(page, limit);
+            setProducts(result.data);
+            setPagination(result.pagination);
+        } catch (error) {
+            console.error(error);
+        }
+    }, [page, limit]);
+
+    useEffect(() => {
+        fetchProducts();
+    }, [fetchProducts]);
 
     const filteredProducts = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -76,6 +96,7 @@ export function ProductsPage() {
             } else {
                 await addProduct(data);
             }
+            await fetchProducts();
             setIsModalOpen(false);
             setSelectedProduct(null);
             setImageFile(null);
@@ -166,6 +187,19 @@ export function ProductsPage() {
                     </motion.div>
                 ))}
             </div>
+
+            {pagination && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                        onPageChange={setPage}
+                        onItemsPerPageChange={setLimit}
+                    />
+                </div>
+            )}
 
             <Modal
                 isOpen={isModalOpen}
@@ -276,7 +310,13 @@ export function ProductsPage() {
             <ConfirmationDialog
                 isOpen={isDeleteOpen}
                 onClose={() => setIsDeleteOpen(false)}
-                onConfirm={() => productToDelete && deleteProduct(productToDelete)}
+                onConfirm={async () => {
+                    if (productToDelete) {
+                        await deleteProduct(productToDelete);
+                        await fetchProducts();
+                        setIsDeleteOpen(false);
+                    }
+                }}
                 title="Remove Brew variant?"
                 message="This will permanently delete the product from the catalog. Customers won't see it anymore."
             />

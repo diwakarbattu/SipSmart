@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useEffect,
+} from "react";
 import { Bottle } from "./OrderContext";
 
 export interface CartItem {
@@ -18,15 +24,48 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const CART_STORAGE_KEY = "mt_beer_cart";
+
+export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+      if (savedCart) {
+        const parsedCart = JSON.parse(savedCart);
+        setItems(parsedCart);
+      }
+    } catch (error) {
+      console.error("Failed to load cart from localStorage", error);
+    } finally {
+      setIsInitialized(true);
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (isInitialized) {
+      try {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      } catch (error) {
+        console.error("Failed to save cart to localStorage", error);
+      }
+    }
+  }, [items, isInitialized]);
 
   const addItem = (bottle: Bottle, quantity: number) => {
     setItems((prev) => {
       const existing = prev.find((i) => i.bottle.id === bottle.id);
       if (existing) {
         return prev.map((i) =>
-          i.bottle.id === bottle.id ? { ...i, quantity: i.quantity + quantity } : i
+          i.bottle.id === bottle.id
+            ? { ...i, quantity: i.quantity + quantity }
+            : i,
         );
       }
       return [...prev, { bottle, quantity }];
@@ -39,7 +78,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     setItems((prev) =>
-      prev.map((i) => (i.bottle.id === bottleId ? { ...i, quantity } : i))
+      prev.map((i) => (i.bottle.id === bottleId ? { ...i, quantity } : i)),
     );
   };
 
@@ -51,12 +90,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
-    [items]
+    [items],
   );
 
   const totalPrice = useMemo(
-    () => items.reduce((sum, item) => sum + item.bottle.price * item.quantity, 0),
-    [items]
+    () =>
+      items.reduce((sum, item) => sum + item.bottle.price * item.quantity, 0),
+    [items],
   );
 
   return (

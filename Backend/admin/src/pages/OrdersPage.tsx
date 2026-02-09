@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Check, X, Clock, Edit2, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { orderService } from '../services/orderService';
+import { Pagination } from '../components/Pagination';
 import { motion } from 'framer-motion';
 import { Modal } from '../components/Modal';
 import { ConfirmationDialog } from '../components/ConfirmationDialog';
 import type { Order } from '../types';
 
 export function OrdersPage() {
-    const { orders, updateOrderStatus, deleteOrder } = useData();
+    const { updateOrderStatus, deleteOrder } = useData();
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [pagination, setPagination] = useState<any>(null);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
+    // Filters
     const [activeTab, setActiveTab] = useState('All');
     const [search, setSearch] = useState('');
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -17,12 +26,42 @@ export function OrdersPage() {
 
     const [editFormData, setEditFormData] = useState<Partial<Order>>({});
 
+    const fetchOrders = useCallback(async () => {
+        try {
+            const filters: any = {};
+            if (activeTab !== 'All') {
+                filters.status = activeTab;
+            }
+            if (dateRange.start) filters.startDate = dateRange.start;
+            if (dateRange.end) filters.endDate = dateRange.end;
+            // For now search is client side on the page or we ignore it for server side fetch?
+            // The plan said advanced order filters. The backend handles status. 
+            // Let's implement fetching.
+
+            const result = await orderService.getOrders(page, limit, filters);
+            setOrders(result.data);
+            setPagination(result.pagination);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            // loading removed
+        }
+    }, [page, limit, activeTab, dateRange]);
+
+    useEffect(() => {
+        setPage(1); // Reset to page 1 when tab changes
+    }, [activeTab]);
+
+    useEffect(() => {
+        fetchOrders();
+    }, [fetchOrders]);
+
+    // We still filter client side for search string because backend doesn't support generic search query yet on this endpoint (only userId)
     const filteredOrders = orders.filter(order => {
-        const matchesTab = activeTab === 'All' || order.status === activeTab;
-        const matchesSearch = order.mobile.includes(search) ||
+        if (!search) return true;
+        return order.mobile.includes(search) ||
             order.userName.toLowerCase().includes(search.toLowerCase()) ||
             order.id.toLowerCase().includes(search.toLowerCase());
-        return matchesTab && matchesSearch;
     });
 
     const handleOpenEdit = (order: Order) => {
@@ -36,6 +75,7 @@ export function OrdersPage() {
         if (selectedOrder && editFormData.status) {
             try {
                 await updateOrderStatus(selectedOrder.id, editFormData.status as any);
+                await fetchOrders();
                 setIsEditModalOpen(false);
             } catch (err) {
                 // Error handled in context
@@ -61,15 +101,29 @@ export function OrdersPage() {
                     ))}
                 </div>
 
-                <div className="relative w-full lg:w-96">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <div className="flex gap-4 w-full lg:w-auto">
                     <input
-                        type="text"
-                        placeholder="Search by mobile or ID..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition-all shadow-sm text-slate-900 dark:text-white"
+                        type="date"
+                        value={dateRange.start}
+                        onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                        className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none text-slate-600 dark:text-slate-300 font-medium"
                     />
+                    <input
+                        type="date"
+                        value={dateRange.end}
+                        onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                        className="px-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none text-slate-600 dark:text-slate-300 font-medium"
+                    />
+                    <div className="relative w-full lg:w-96">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by mobile or ID..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl focus:ring-2 focus:ring-amber-500 outline-none transition-all shadow-sm text-slate-900 dark:text-white"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -146,6 +200,19 @@ export function OrdersPage() {
                 </div>
             </div>
 
+            {pagination && (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+                    <Pagination
+                        currentPage={pagination.page}
+                        totalPages={pagination.pages}
+                        totalItems={pagination.total}
+                        itemsPerPage={pagination.limit}
+                        onPageChange={setPage}
+                        onItemsPerPageChange={setLimit}
+                    />
+                </div>
+            )}
+
             {/* Edit Order Modal */}
             <Modal
                 isOpen={isEditModalOpen}
@@ -205,7 +272,13 @@ export function OrdersPage() {
             <ConfirmationDialog
                 isOpen={isDeleteOpen}
                 onClose={() => setIsDeleteOpen(false)}
-                onConfirm={() => orderToDelete && deleteOrder(orderToDelete)}
+                onConfirm={async () => {
+                    if (orderToDelete) {
+                        await deleteOrder(orderToDelete);
+                        await fetchOrders();
+                        setIsDeleteOpen(false);
+                    }
+                }}
                 title="Discard Order Record?"
                 message="This will remove the order history. This action usually cannot be undone."
             />

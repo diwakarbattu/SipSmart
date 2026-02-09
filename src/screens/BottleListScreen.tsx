@@ -27,7 +27,11 @@ export function BottleListScreen() {
       setIsLoading(true);
       try {
         const data = await bottleService.getBottles();
-        setBottles(data);
+        if (data) {
+          setBottles(data);
+        } else {
+          setBottles([]);
+        }
       } catch (err) {
         toast.error("Offline: Showing cached menu");
       } finally {
@@ -38,31 +42,34 @@ export function BottleListScreen() {
     fetchBottles();
 
     // Setup Socket.io listeners
-    const socket = socketService.connect('guest'); // Use actual user ID if logged in
+    const socket = socketService.connect("guest"); // Use actual user ID if logged in
 
-    socket.on('product_added', (newProduct: Bottle) => {
-      setBottles(prev => [newProduct, ...prev]);
+    socket.on("product_added", (newProduct: Bottle) => {
+      setBottles((prev) => [newProduct, ...prev]);
       toast.info(`New Arrival: ${newProduct.name}!`);
     });
 
-    socket.on('product_updated', (updatedProduct: Bottle) => {
-      setBottles(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    socket.on("product_updated", (updatedProduct: Bottle) => {
+      setBottles((prev) =>
+        prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)),
+      );
     });
 
-    socket.on('product_deleted', (productId: string) => {
-      setBottles(prev => prev.filter(p => p.id !== productId));
+    socket.on("product_deleted", (productId: string) => {
+      setBottles((prev) => prev.filter((p) => p.id !== productId));
     });
 
     return () => {
-      socket.off('product_added');
-      socket.off('product_updated');
-      socket.off('product_deleted');
+      socket.off("product_added");
+      socket.off("product_updated");
+      socket.off("product_deleted");
     };
   }, []);
 
-  const filteredBottles = bottles.filter((bottle) =>
-    bottle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    bottle.type?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredBottles = bottles.filter(
+    (bottle) =>
+      bottle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bottle.type?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const updateQuantity = (id: string, change: number) => {
@@ -81,7 +88,7 @@ export function BottleListScreen() {
     }
     addItem(bottle, qty);
     toast.success(`${qty} x ${bottle.name} added to cart`);
-    setQuantities(prev => ({ ...prev, [bottle.id]: 1 }));
+    setQuantities((prev) => ({ ...prev, [bottle.id]: 1 }));
   };
 
   return (
@@ -96,15 +103,23 @@ export function BottleListScreen() {
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-accent/10 p-2 flex items-center justify-center border border-accent/20 animate-pulse-subtle">
-                <img src={logo} alt="Logo" className="w-full h-full object-contain" />
+                <img
+                  src={logo}
+                  alt="Logo"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Welcome back</p>
-                <h1 className="text-xl font-black tracking-tight">Hello, {authService.getCurrentUser()?.name || 'Friend'}!</h1>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
+                  Welcome back
+                </p>
+                <h1 className="text-xl font-black tracking-tight">
+                  Hello, {authService.getCurrentUser()?.name || "Friend"}!
+                </h1>
               </div>
             </div>
             <button
-              onClick={() => navigate('/cart')}
+              onClick={() => navigate("/cart")}
               className="relative p-2 bg-secondary rounded-xl hover:bg-accent/20 transition-colors hover-lift"
             >
               <ShoppingCart className="w-6 h-6" />
@@ -146,7 +161,7 @@ export function BottleListScreen() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05, duration: 0.4 }}
-              className="bg-card rounded-3xl p-4 border border-border shadow-lg flex flex-col hover-lift"
+              className="bg-card rounded-3xl p-4 border border-border shadow-lg flex flex-col"
             >
               {/* Bottle Image */}
               <div className="aspect-square rounded-2xl bg-secondary/50 mb-3 overflow-hidden relative group">
@@ -156,20 +171,28 @@ export function BottleListScreen() {
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex flex-col items-end">
-                  <p className="text-accent text-xs font-bold">₹{bottle.price}</p>
+                  <p className="text-accent text-xs font-bold">
+                    ₹{bottle.price}
+                  </p>
                   {(bottle.discount ?? 0) > 0 && (
-                    <p className="text-[8px] text-emerald-400 font-bold leading-none">-{bottle.discount}% OFF</p>
+                    <p className="text-[8px] text-emerald-400 font-bold leading-none">
+                      -{bottle.discount}% OFF
+                    </p>
                   )}
                 </div>
                 <div className="absolute bottom-2 left-2 flex gap-1">
                   {bottle.type && (
                     <div className="bg-accent/80 backdrop-blur-sm px-2 py-0.5 rounded-md">
-                      <p className="text-[8px] text-accent-foreground font-black uppercase tracking-tighter">{bottle.type}</p>
+                      <p className="text-[8px] text-accent-foreground font-black uppercase tracking-tighter">
+                        {bottle.type}
+                      </p>
                     </div>
                   )}
                   {bottle.size && (
                     <div className="bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-md">
-                      <p className="text-[8px] text-white font-black uppercase tracking-tighter">{bottle.size}</p>
+                      <p className="text-[8px] text-white font-black uppercase tracking-tighter">
+                        {bottle.size}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -177,11 +200,17 @@ export function BottleListScreen() {
 
               {/* Bottle Info */}
               <div className="space-y-1 mb-3 flex-1">
-                <h3 className="font-bold text-sm leading-tight h-10 line-clamp-2">{bottle.name}</h3>
-                <p className="text-muted-foreground text-[8px] line-clamp-3 mb-1 font-12">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-bold text-sm leading-tight flex-1 line-clamp-2">
+                    {bottle.name}
+                  </h3>
+                  <p className="text-accent font-black text-base shrink-0">
+                    ₹{bottle.price}
+                  </p>
+                </div>
+                <p className="text-muted-foreground text-[10px] line-clamp-2">
                   {bottle.description}
                 </p>
-                <p className="text-accent font-black text-lg">₹{bottle.price}</p>
               </div>
 
               {/* Action Area */}
@@ -211,7 +240,7 @@ export function BottleListScreen() {
                   className="flex-1 h-10 rounded-xl bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs"
                   disabled={bottle.stock === 0}
                 >
-                  {bottle.stock === 0 ? 'Out' : 'Add'}
+                  {bottle.stock === 0 ? "Out of Stock" : "Add to Cart"}
                 </Button>
               </div>
             </motion.div>

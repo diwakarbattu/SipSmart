@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { SplashScreen } from "./screens/SplashScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { ForgotPasswordScreen } from "./screens/ForgotPasswordScreen";
 import { BottleListScreen } from "./screens/BottleListScreen";
 import { OrderFormScreenNew as OrderFormScreen } from "./screens/OrderFormScreenNew";
 import { AddressScreen } from "./screens/AddressScreen";
@@ -23,6 +24,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     Component: LoginScreen,
+  },
+  {
+    path: "/forgot-password",
+    Component: ForgotPasswordScreen,
   },
   {
     path: "/register",
@@ -71,6 +76,6 @@ export const router = createBrowserRouter([
         path: "/change-password",
         Component: ChangePasswordScreen,
       },
-    ]
-  }
+    ],
+  },
 ]);

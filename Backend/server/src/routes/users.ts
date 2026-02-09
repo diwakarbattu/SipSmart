@@ -4,11 +4,28 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-// Get all users (Admin Only)
+// Get all users (Admin Only) - with pagination
 router.get('/', authenticate, authorize(['admin']), async (req, res) => {
     try {
-        const users = await User.find({ role: 'user' }).sort({ createdAt: -1 });
-        res.json(users);
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+
+        const total = await User.countDocuments({ role: 'user' });
+        const users = await User.find({ role: 'user' })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            data: users,
+            pagination: {
+                total,
+                page,
+                limit,
+                pages: Math.ceil(total / limit)
+            }
+        });
     } catch (err: any) {
         res.status(500).json({ message: err.message });
     }

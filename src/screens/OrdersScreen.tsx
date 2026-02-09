@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Package, Pencil, X } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useOrders } from "../state/OrderContext";
 import { Button } from "../components/ui/button";
 import { useCart } from "../state/CartContext";
 import { BottomNav } from "../components/BottomNav";
+import { toast } from "sonner";
+import { ModifyOrderModal } from "../components/ModifyOrderModal";
+import { orderService } from "../services/orderService";
 
 export function OrdersScreen() {
   const navigate = useNavigate();
-  const { orders, cancelOrder } = useOrders();
+  const { orders, cancelOrder, updateOrder } = useOrders();
   const { totalItems } = useCart();
   const [orderTab, setOrderTab] = useState<"active" | "history">("active");
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [modifyingOrder, setModifyingOrder] = useState<any>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState<any>(null);
 
   const filteredOrders = orders.filter(o => {
     if (orderTab === "active") return ["Pending", "Accepted"].includes(o.status);
@@ -111,23 +117,54 @@ export function OrdersScreen() {
                 </div>
               </div>
 
+              {/* Action Buttons - Status Based */}
               {o.status === "Pending" && (
-                <div className="flex gap-3 pt-4 border-t border-border/50">
+                <div className="flex gap-2 pt-3 border-t border-border/50">
                   <Button
-                    onClick={() => navigate("/order", { state: { order: o, edit: true } })}
-                    className="flex-1 h-12 rounded-2xl bg-accent text-accent-foreground font-bold flex items-center justify-center gap-2"
+                    onClick={() => setModifyingOrder(o)}
+                    className="flex-1 h-8 rounded-xl bg-accent text-accent-foreground font-semibold flex items-center justify-center gap-1.5 text-xs hover:bg-accent/90 transition-all"
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="w-3.5 h-3.5" />
                     Modify
                   </Button>
 
                   <Button
-                    onClick={() => cancelOrder(o.id)}
+                    onClick={() => setShowCancelDialog(o)}
+                    disabled={cancellingOrderId === o.id}
                     variant="outline"
-                    className="flex-1 h-12 rounded-2xl border-border text-destructive hover:bg-destructive/10 font-bold flex items-center justify-center gap-2"
+                    className="flex-1 h-8 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 font-semibold flex items-center justify-center gap-1.5 text-xs transition-all disabled:opacity-50"
                   >
-                    <X className="w-4 h-4" />
-                    Cancel
+                    {cancellingOrderId === o.id ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </motion.div>
+                        Cancelling...
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-3.5 h-3.5" />
+                        Cancel
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Accepted orders - Cancel only with warning */}
+              {o.status === "Accepted" && (
+                <div className="pt-3 border-t border-border/50">
+                  <Button
+                    onClick={() => setShowCancelDialog(o)}
+                    disabled={cancellingOrderId === o.id}
+                    variant="outline"
+                    className="w-full h-8 rounded-xl border-amber-500/30 text-amber-600 hover:bg-amber-500/10 font-semibold flex items-center justify-center gap-1.5 text-xs"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Request Cancellation
                   </Button>
                 </div>
               )}
@@ -136,8 +173,144 @@ export function OrdersScreen() {
         )}
       </motion.div>
 
+
       {/* Bottom Navigation */}
       <BottomNav />
+
+      {/* Modify Order Modal */}
+      {modifyingOrder && (
+        <ModifyOrderModal
+          isOpen={!!modifyingOrder}
+          onClose={() => setModifyingOrder(null)}
+          order={modifyingOrder}
+          onSave={async (updates) => {
+            await updateOrder(modifyingOrder.id, updates);
+            setModifyingOrder(null);
+          }}
+        />
+      )}
+
+      {/* Cancel Dialog */}
+      {showCancelDialog && (
+        <CancelOrderDialog
+          order={showCancelDialog}
+          onClose={() => setShowCancelDialog(null)}
+          onConfirm={async (cancelReason) => {
+            setCancellingOrderId(showCancelDialog.id);
+            try {
+              await cancelOrder(showCancelDialog.id, cancelReason);
+              toast.success("Order cancelled successfully");
+              setShowCancelDialog(null);
+            } catch (error: any) {
+              toast.error(error.response?.data?.message || "Failed to cancel order");
+            } finally {
+              setTimeout(() => setCancellingOrderId(null), 500);
+            }
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// Cancel Order Dialog Component
+function CancelOrderDialog({ order, onClose, onConfirm }: { order: any, onClose: () => void, onConfirm: (reason: string) => void }) {
+  const [cancelReason, setCancelReason] = useState("");
+  const [selectedReason, setSelectedReason] = useState("");
+
+  const reasons = [
+    "Changed my mind",
+    "Found better price elsewhere",
+    "Ordered by mistake",
+    "Delivery time too long",
+    "Other"
+  ];
+
+  const handleConfirm = () => {
+    const reason = selectedReason === "Other" ? cancelReason : selectedReason;
+    onConfirm(reason);
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-background rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold">Cancel Order</h3>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-secondary hover:bg-destructive/10 hover:text-destructive flex items-center justify-center">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {order.status === "Accepted" && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+              <p className="text-xs text-amber-600 font-semibold">⚠️ This order has been accepted by the admin. Cancellation will require admin approval.</p>
+            </div>
+          )}
+
+          <div className="p-4 bg-secondary/30 rounded-xl space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Order Total:</span>
+              <span className="font-bold">₹{order.totalPrice}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Items:</span>
+              <span className="font-bold">{order.productList.length}</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold">Reason for cancellation (optional):</label>
+            <select
+              value={selectedReason}
+              onChange={(e) => setSelectedReason(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-secondary border border-border"
+            >
+              <option value="">Select a reason...</option>
+              {reasons.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+
+            {selectedReason === "Other" && (
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Please specify..."
+                className="w-full h-20 px-3 py-2 rounded-xl bg-secondary border border-border resize-none"
+              />
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="flex-1 h-10 rounded-xl"
+            >
+              Keep Order
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
+            >
+              Yes, Cancel
+            </Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

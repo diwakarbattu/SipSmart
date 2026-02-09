@@ -17,6 +17,7 @@ interface DataContextType {
 
     addUser: (user: any) => Promise<void>;
     updateUser: (id: string, user: any) => Promise<void>;
+    approveUser: (id: string, isApproved: boolean) => Promise<void>;
     deleteUser: (id: string) => Promise<void>;
 
     addProduct: (product: any) => Promise<void>;
@@ -122,6 +123,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } catch (err) { toast.error('Update failed'); }
     };
 
+    const approveUser = async (id: string, isApproved: boolean) => {
+        try {
+            const updated = await userService.approveUser(id, isApproved);
+            setUsers(prev => prev.map(u => u.id === id ? updated : u));
+            toast.success(isApproved ? 'User approved' : 'User rejected');
+        } catch (err) { toast.error('Approval update failed'); }
+    };
+
     const deleteUser = async (id: string) => {
         try {
             await userService.deleteUser(id);
@@ -206,7 +215,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return (
         <DataContext.Provider value={{
             users, products, orders, offers, notifications, isLoading,
-            addUser, updateUser, deleteUser,
+            addUser, updateUser, approveUser, deleteUser,
             addProduct, updateProduct, deleteProduct,
             updateOrderStatus, deleteOrder,
             addOffer, updateOffer, deleteOffer,

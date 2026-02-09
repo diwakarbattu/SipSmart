@@ -22,7 +22,9 @@ const orderSchema = new mongoose.Schema({
         enum: ['Pending', 'Accepted', 'Delivered', 'Cancelled'],
         default: 'Pending'
     },
+    cancelReason: { type: String },
     createdAt: { type: Date, default: Date.now },
+    modifiedAt: { type: Date },
 }, {
     toJSON: {
         transform: (doc, ret: any) => {

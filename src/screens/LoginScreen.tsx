@@ -1,18 +1,18 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { Beer, Phone, Lock } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { motion } from 'motion/react';
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { Beer, Phone, Lock } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { motion } from "motion/react";
 
-import { authService } from '../services/authService';
-import { toast } from 'sonner';
+import { authService } from "../services/authService";
+import { toast } from "sonner";
 
 export function LoginScreen() {
   const navigate = useNavigate();
-  const [identity, setIdentity] = useState(''); // email or mobile
-  const [password, setPassword] = useState('');
+  const [identity, setIdentity] = useState(""); // email or mobile
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -22,7 +22,7 @@ export function LoginScreen() {
     try {
       await authService.login(identity, password);
       toast.success("Welcome to MT Beer Order!");
-      navigate('/home');
+      navigate("/home");
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Login failed");
     } finally {
@@ -65,12 +65,12 @@ export function LoginScreen() {
           <motion.div
             animate={{
               y: [0, -10, 0],
-              rotate: [0, 5, -5, 0]
+              rotate: [0, 5, -5, 0],
             }}
             transition={{
               duration: 3,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: "easeInOut",
             }}
             className="relative"
           >
@@ -110,6 +110,13 @@ export function LoginScreen() {
                 className="pl-12 h-14 rounded-2xl bg-card border-border"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => navigate("/forgot-password")}
+              className="text-xs text-accent hover:text-accent/80 font-medium mt-1"
+            >
+              Forgot Password?
+            </button>
           </div>
 
           <Button
@@ -122,7 +129,7 @@ export function LoginScreen() {
           <p>Don't have an account?</p>
           <Button
             variant="outline"
-            onClick={() => navigate('/register')}
+            onClick={() => navigate("/register")}
             className="w-full register-btn h-14 hover:bg-card"
           >
             Register Now

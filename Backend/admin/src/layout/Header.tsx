@@ -1,11 +1,21 @@
-import { Bell, Search, User, Moon, Sun } from 'lucide-react';
+import { Bell, Search, User, Moon, Sun, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../services/authService';
 
 export function Header({ title }: { title: string }) {
     const { theme, toggleTheme } = useTheme();
     const { notifications } = useData();
     const unreadCount = notifications.filter(n => !n.isRead).length;
+    const [showDropdown, setShowDropdown] = useState(false);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        authService.logout();
+        navigate('/login');
+    };
 
     return (
         <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 sticky top-0 z-40 transition-colors">
@@ -43,14 +53,36 @@ export function Header({ title }: { title: string }) {
                     )}
                 </button>
 
-                <div className="flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-800">
+                <div className="relative flex items-center gap-3 pl-6 border-l border-slate-200 dark:border-slate-800">
                     <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">Admin Panel</p>
                         <p className="text-xs text-slate-500">Super Admin</p>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-800 cursor-pointer overflow-hidden shadow-sm">
+                    <button
+                        onClick={() => setShowDropdown(!showDropdown)}
+                        className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-800 cursor-pointer overflow-hidden shadow-sm hover:border-amber-500 transition-colors"
+                    >
                         <User className="w-6 h-6 text-slate-400" />
-                    </div>
+                    </button>
+
+                    {showDropdown && (
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden z-50">
+                            <button
+                                onClick={() => { navigate('/settings'); setShowDropdown(false); }}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
+                            >
+                                <SettingsIcon className="w-4 h-4" />
+                                <span className="text-sm font-medium">Settings</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 transition-colors border-t border-slate-100 dark:border-slate-800"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                <span className="text-sm font-medium">Logout</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
